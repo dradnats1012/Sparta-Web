@@ -2,13 +2,15 @@ import React, { useState } from "react";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import dayjs from "dayjs";
+import { FixedSizeList as List } from "react-window";
 
 interface LoanRecord {
   id: number;
   schoolName: string;
+  grade: number;
   bookTitle: string;
   loanDate: string;
-  grade: number;
 }
 
 function App() {
@@ -24,24 +26,41 @@ function App() {
       return;
     }
 
+    const start = dayjs(startDate).format("YYYY-MM-DD");
+    const end = dayjs(endDate).format("YYYY-MM-DD");
+
     try {
       setLoading(true);
       setError("");
+
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/loan-records`,
+        `${process.env.REACT_APP_API_URL}/loanRaw`,
         {
           params: {
-            startDate: startDate.toISOString().slice(0, 10),
-            endDate: endDate.toISOString().slice(0, 10),
+            startDate: start,
+            endDate: end,
           },
         }
       );
+
       setLoanRecords(response.data);
     } catch (err) {
       setError("조회 실패!");
     } finally {
       setLoading(false);
     }
+  };
+
+  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const record = loanRecords[index];
+    return (
+      <tr style={{ ...style, display: "table", width: "100%", tableLayout: "fixed" }}>
+        <td style={tdStyle}>{record.schoolName}</td>
+        <td style={tdStyle}>{record.grade}학년</td>
+        <td style={tdStyle}>{record.bookTitle}</td>
+        <td style={tdStyle}>{record.loanDate}</td>
+      </tr>
+    );
   };
 
   return (
@@ -92,34 +111,29 @@ function App() {
       {loading && <p>⏳ 조회 중...</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
 
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          textAlign: "left",
-        }}
-      >
-        <thead>
-          <tr>
-            <th style={thStyle}>ID</th>
-            <th style={thStyle}>학교</th>
-            <th style={thStyle}>학년</th>
-            <th style={thStyle}>도서명</th>
-            <th style={thStyle}>대출일</th>
-          </tr>
-        </thead>
-        <tbody>
-          {loanRecords.map((record) => (
-            <tr key={record.id}>
-              <td style={tdStyle}>{record.id}</td>
-              <td style={tdStyle}>{record.schoolName}</td>
-              <td style={tdStyle}>{record.grade}학년</td>
-              <td style={tdStyle}>{record.bookTitle}</td>
-              <td style={tdStyle}>{record.loanDate}</td>
+      <div style={{ border: "1px solid #ccc", maxHeight: "600px", overflow: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ display: "table", width: "100%", tableLayout: "fixed" }}>
+              <th style={thStyle}>학교</th>
+              <th style={thStyle}>학년</th>
+              <th style={thStyle}>도서명</th>
+              <th style={thStyle}>대출일</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <List
+              height={500}
+              itemCount={loanRecords.length}
+              itemSize={50}
+              width="100%"
+              outerElementType="tbody"
+            >
+              {Row}
+            </List>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
